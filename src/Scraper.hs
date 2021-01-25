@@ -15,6 +15,7 @@ data MetaData = MetaData
                 { _name   :: String
                 , _artist :: String
                 , _key    :: Maybe Key
+                , _keyFmt :: String
                 , _bpm    :: Maybe Int
                 } deriving Show
 
@@ -37,13 +38,18 @@ findSong2 url = do
   manager <- Just <$> HTTP.newManager managerSettings
   scrapeURLWithConfig (Config defaultDecoder manager) url scrapeSongs
 
+infix 5 +~+
+s1 +~+ s2 = s1 ++ " " ++ s2
+
 scrapeSongs :: Scraper String [MetaData]
 scrapeSongs = chroots ("div" @: [hasClass "searchResultNode"]) $ do
                 artist <- text  $ "div" @: [hasClass "search-artist-name"]
                 name   <- text  $ "div" @: [hasClass "search-track-name"]
                 rest   <- texts $ "div" @: [hasClass "search-attribute-value"]
-                let bpm  = readMaybe $ last rest
-                    note = readNote . head   . words . head $ rest
-                    mode = readMode . (!! 1) . words . head $ rest
-                    key  = zipMaybe (note, mode)
-                return $ MetaData name artist key bpm
+                let hRest  = words . head $ rest
+                    bpm    = readMaybe $ last rest
+                    note   = readNote . head   $ hRest
+                    mode   = readMode . (!! 1) $ hRest
+                    key    = zipMaybe (note, mode)
+                    keyFmt = (formatNote . head) hRest +~+ hRest !! 1
+                return $ MetaData name artist key keyFmt bpm

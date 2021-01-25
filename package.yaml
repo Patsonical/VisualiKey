@@ -26,6 +26,9 @@ dependencies:
 - http-client-tls
 - http-types
 - parsec
+- rainbow
+- mtl
+- text
 
 library:
   source-dirs: src

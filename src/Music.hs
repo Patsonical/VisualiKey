@@ -55,3 +55,28 @@ readMode text
   | text == "Major" = Just Major
   | text == "Minor" = Just Minor
   | otherwise       = Nothing
+
+formatNote :: String -> String
+formatNote text
+  | text == "A"      = "A"
+  | text == "B"      = "B"
+  | text == "C"      = "C"
+  | text == "D"      = "D"
+  | text == "E"      = "E"
+  | text == "F"      = "F"
+  | text == "G"      = "G"
+  | text == "A#"     = "A♯"
+  | text == "B#"     = "B♯"
+  | text == "C#"     = "C♯"
+  | text == "D#"     = "D♯"
+  | text == "E#"     = "E♯"
+  | text == "F#"     = "F♯"
+  | text == "G#"     = "G♯"
+  | text == "A\9837" = "A♭"
+  | text == "B\9837" = "B♭"
+  | text == "C\9837" = "C♭"
+  | text == "D\9837" = "D♭"
+  | text == "E\9837" = "E♭"
+  | text == "F\9837" = "F♭"
+  | text == "G\9837" = "G♭"
+  | otherwise        = ""
