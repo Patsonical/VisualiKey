@@ -4,24 +4,23 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 
-name:           pianoKey
+name:           visualikey
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/githubuser/pianoKey#readme>
-homepage:       https://github.com/githubuser/pianoKey#readme
-bug-reports:    https://github.com/githubuser/pianoKey/issues
-author:         Author name here
-maintainer:     example@example.com
-copyright:      2021 Author name here
-license:        BSD3
+description:    A simple command-line program to find the key of a song (queried via Tunebat.com) and display it as ASCII art
+homepage:       https://github.com/Patsonical/VisualiKey#readme
+bug-reports:    https://github.com/Patsonical/VisualiKey/issues
+author:         Patsonical
+maintainer:     patryk.kaczmarczyk.mail@gmail.com
+copyright:      2021 Patryk Kaczmarczyk
+license:        GPL-2
 license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     README.md
-    ChangeLog.md
 
 source-repository head
   type: git
-  location: https://github.com/githubuser/pianoKey
+  location: https://github.com/Patsonical/VisualiKey
 
 library
   exposed-modules:
@@ -30,14 +29,12 @@ library
       Music
       Scraper
   other-modules:
-      Paths_pianoKey
+      Paths_visualikey
   hs-source-dirs:
       src
   build-depends:
       base >=4.7 && <5
     , http-client
-    , http-client-tls
-    , http-types
     , mtl
     , parsec
     , rainbow
@@ -45,43 +42,39 @@ library
     , text
   default-language: Haskell2010
 
-executable pianoKey-exe
+executable visualikey
   main-is: Main.hs
   other-modules:
-      Paths_pianoKey
+      Paths_visualikey
   hs-source-dirs:
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , http-client
-    , http-client-tls
-    , http-types
     , mtl
     , parsec
-    , pianoKey
     , rainbow
     , scalpel
     , text
+    , visualikey
   default-language: Haskell2010
 
-test-suite pianoKey-test
+test-suite visualikey-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Paths_pianoKey
+      Paths_visualikey
   hs-source-dirs:
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , http-client
-    , http-client-tls
-    , http-types
     , mtl
     , parsec
-    , pianoKey
     , rainbow
     , scalpel
     , text
+    , visualikey
   default-language: Haskell2010

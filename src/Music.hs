@@ -25,6 +25,12 @@ resolveScale root mode = case mode of
   Major -> cycEnumFrom root !!! [0,2,4,5,7,9,11]
   Minor -> cycEnumFrom root !!! [0,2,3,5,7,8,10]
 
+readMode :: String -> Maybe Mode
+readMode text
+  | text == "Major" = Just Major
+  | text == "Minor" = Just Minor
+  | otherwise       = Nothing
+
 readNote :: String -> Maybe Note
 readNote text
   | text == "A"      = Just A
@@ -49,12 +55,6 @@ readNote text
   | text == "F\9837" = Just E
   | text == "G\9837" = Just F'
   | otherwise        = Nothing
-
-readMode :: String -> Maybe Mode
-readMode text
-  | text == "Major" = Just Major
-  | text == "Minor" = Just Minor
-  | otherwise       = Nothing
 
 formatNote :: String -> String
 formatNote text

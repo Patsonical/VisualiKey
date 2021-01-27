@@ -1,15 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
+import Data.List          (intercalate)
 import Rainbow
-import Data.List
 import System.Environment (getArgs)
-import Data.Text (pack)
-import Text.Read (readMaybe)
+import Text.Read          (readMaybe)
 
+import Keyboard
+import Lib
 import Music
 import Scraper
-import Keyboard
 
 main :: IO ()
 main = do
@@ -21,11 +21,6 @@ main = do
 searchSong :: String -> IO (Maybe [MetaData])
 searchSong name = findSong $ "https://tunebat.com/Search?q=" ++ intercalate "+" (words name)
 
-cp :: String -> Chunk
-cp = chunk . pack
-
-testMd = MetaData "Colors" "Tobu" (Just (A,Major)) "A Major" (Just 128)
-
 showResult :: (Int, MetaData) -> IO ()
 showResult (ix, md) = do
   putChunk   . bold . fore blue  . cp $ '[' : show ix ++ "] "
@@ -36,7 +31,6 @@ expandResult :: MetaData -> IO ()
 expandResult md = do
   putChunk   . bold . fore blue   . cp $ '\t' : _artist md ++ " - "
   putChunkLn . bold . fore green  . cp $ _name md
-  --putStrLn ""
   putChunkLn . bold . fore yellow . cp $ replicate 22 ' ' ++ "Key: " ++ _keyFmt md
   case _key md of
     Nothing  -> putChunkLn $ fore red "Error parsing key"
@@ -46,9 +40,8 @@ expandResult md = do
 presentResults :: [(Int, MetaData)] -> IO ()
 presentResults mds = do
   putChunkLn . bold . fore yellow . cp $ "\tResults found: " ++ show (length mds)
-  --let (pres, rest) = splitAt 10 mds
   mapM_ showResult mds
-  selection mds
+  if null mds then pure () else selection mds
 
 selection :: [(Int, MetaData)] -> IO ()
 selection mds = do

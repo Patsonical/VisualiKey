@@ -1,12 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Scraper where
+module Scraper (MetaData(..), findSong) where
 
-import Text.Read (readMaybe)
 import Text.HTML.Scalpel
-import qualified Network.HTTP.Client as HTTP
-import qualified Network.HTTP.Client.TLS as HTTP
-import qualified Network.HTTP.Types.Header as HTTP
+import Text.Read         (readMaybe)
 
 import Lib
 import Music
@@ -19,27 +16,9 @@ data MetaData = MetaData
                 , _bpm    :: Maybe Int
                 } deriving Show
 
-managerSettings :: HTTP.ManagerSettings
-managerSettings = HTTP.tlsManagerSettings {
-  HTTP.managerModifyRequest = \req -> do
-    req' <- HTTP.managerModifyRequest HTTP.tlsManagerSettings req
-    return $ req' {
-      HTTP.requestHeaders = (HTTP.hUserAgent, "Mozilla/5.0 (X11; Linux x86_64; rv:84.0) Gecko/20100101 Firefox/84.0")
-                          : HTTP.requestHeaders req'
-    }
-}
-
 findSong :: URL -> IO (Maybe [MetaData])
 findSong url = do
   scrapeURL url scrapeSongs
-
-findSong2 :: URL -> IO (Maybe [MetaData])
-findSong2 url = do
-  manager <- Just <$> HTTP.newManager managerSettings
-  scrapeURLWithConfig (Config defaultDecoder manager) url scrapeSongs
-
-infix 5 +~+
-s1 +~+ s2 = s1 ++ " " ++ s2
 
 scrapeSongs :: Scraper String [MetaData]
 scrapeSongs = chroots ("div" @: [hasClass "searchResultNode"]) $ do
@@ -51,5 +30,5 @@ scrapeSongs = chroots ("div" @: [hasClass "searchResultNode"]) $ do
                     note   = readNote . head   $ hRest
                     mode   = readMode . (!! 1) $ hRest
                     key    = zipMaybe (note, mode)
-                    keyFmt = (formatNote . head) hRest +~+ hRest !! 1
+                    keyFmt = (formatNote . head) hRest ++ " " ++ hRest !! 1
                 return $ MetaData name artist key keyFmt bpm

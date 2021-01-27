@@ -1,14 +1,13 @@
-name:                pianoKey
+name:                visualikey
 version:             0.1.0.0
-github:              "githubuser/pianoKey"
-license:             BSD3
-author:              "Author name here"
-maintainer:          "example@example.com"
-copyright:           "2021 Author name here"
+github:              "Patsonical/VisualiKey"
+license:             GPL-2
+author:              "Patsonical"
+maintainer:          "patryk.kaczmarczyk.mail@gmail.com"
+copyright:           "2021 Patryk Kaczmarczyk"
 
 extra-source-files:
 - README.md
-- ChangeLog.md
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -17,14 +16,12 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/githubuser/pianoKey#readme>
+description: A simple command-line program to find the key of a song (queried via Tunebat.com) and display it as ASCII art 
 
 dependencies:
 - base >= 4.7 && < 5
 - scalpel
 - http-client
-- http-client-tls
-- http-types
 - parsec
 - rainbow
 - mtl
@@ -34,7 +31,7 @@ library:
   source-dirs: src
 
 executables:
-  pianoKey-exe:
+  visualikey:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
@@ -42,10 +39,10 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - pianoKey
+    - visualikey
 
 tests:
-  pianoKey-test:
+  visualikey-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -53,4 +50,4 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - pianoKey
+    - visualikey

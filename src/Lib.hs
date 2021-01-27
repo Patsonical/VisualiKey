@@ -1,5 +1,8 @@
 module Lib where
 
+import Data.Text (pack)
+import Rainbow   (Chunk, chunk)
+
 class (Bounded a, Enum a) => CycEnum a where
   toCycEnum         :: Int -> a
   fromCycEnum       :: a -> Int
@@ -24,3 +27,6 @@ zipMaybe x = do
   a <- fst x
   b <- snd x
   pure (a,b)
+
+cp :: String -> Chunk
+cp = chunk . pack

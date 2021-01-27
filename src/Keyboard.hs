@@ -1,10 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Keyboard where
+module Keyboard (drawKeyboard) where
 
-import Control.Monad.Reader
+import Control.Monad        (replicateM_, forM_)
+import Control.Monad.Reader (ReaderT, asks, runReaderT)
+import Control.Monad.Trans  (lift)
+import Data.List            (intersperse)
+import Data.Text            (pack)
 import Rainbow
-import Data.Text (pack)
 
+import Lib
 import Music
 
 noteChar :: Char -> Note -> Int -> ReaderT [Note] IO ()
@@ -13,8 +17,8 @@ noteChar c note count = do
   root <- asks (\ scale -> note == head scale)
   let color = if root then blue else white
   lift $ if on
-  then putChunk (fore black . back color . chunk . pack . replicate count $ c)
-  else putChunk (fore green              . chunk . pack . replicate count $ c)
+         then putChunk (fore black . back color . chunk . pack . replicate count $ c)
+         else putChunk (fore green              . chunk . pack . replicate count $ c)
 
 (~~) :: Note -> Int -> ReaderT [Note] IO ()
 (~~) = noteChar ' '
@@ -23,64 +27,42 @@ noteChar c note count = do
 (~-) = noteChar '_'
 
 pc  :: Chunk -> ReaderT [Note] IO ()
-pc  c = lift $ putChunk (fore green c)
+pc  c = lift $ putChunk   (fore green c)
 pcn :: Chunk -> ReaderT [Note] IO ()
 pcn c = lift $ putChunkLn (fore green c)
 
-row0 = lift $ putChunkLn (fore green " _______________________________________________________ ")
+row0 = lift $ putChunkLn (fore green . cp $ " " ++ replicate 55 '_')
 row1 = do
-  replicateM_ 2 $ do
-    pc "|"
-    C ~~ 2
-    pc "|"
-    C' ~~ 1
-    pc "|"
-    D ~~ 1
-    pc "|"
-    D' ~~ 1
-    pc "|"
-    E ~~ 2
-    pc "|"
-    F ~~ 2
-    pc "|"
-    F' ~~ 1
-    pc "|"
-    G ~~ 1
-    pc "|"
-    G' ~~ 1
-    pc "|"
-    A ~~ 1
-    pc "|"
-    A' ~~ 1
-    pc "|"
-    B ~~ 2
+  replicateM_ 2 . sequence_ . (pc "|" : ) . intersperse (pc "|") $ 
+    [ C  ~~ 2
+    , C' ~~ 1
+    , D  ~~ 1
+    , D' ~~ 1
+    , E  ~~ 2
+    , F  ~~ 2
+    , F' ~~ 1
+    , G  ~~ 1
+    , G' ~~ 1
+    , A  ~~ 1
+    , A' ~~ 1
+    , B  ~~ 2
+    ]
   pcn "|"
 row2 = do
-  replicateM_ 2 $ do
-    pc "|"
-    C ~~ 2
-    pc "|"
-    C' ~- 1
-    pc "|"
-    D ~~ 1
-    pc "|"
-    D' ~- 1
-    pc "|"
-    E ~~ 2
-    pc "|"
-    F ~~ 2
-    pc "|"
-    F' ~- 1
-    pc "|"
-    G ~~ 1
-    pc "|"
-    G' ~- 1
-    pc "|"
-    A ~~ 1
-    pc "|"
-    A' ~- 1
-    pc "|"
-    B ~~ 2
+  replicateM_ 2 . sequence_ . (pc "|" : ) . intersperse (pc "|") $ 
+    [ C  ~~ 2
+    , C' ~- 1
+    , D  ~~ 1
+    , D' ~- 1
+    , E  ~~ 2
+    , F  ~~ 2
+    , F' ~- 1
+    , G  ~~ 1
+    , G' ~- 1
+    , A  ~~ 1
+    , A' ~- 1
+    , B  ~~ 2
+    ]
   pcn "|"
 row3 = do
   forM_ [C,D,E,F,G,A,B,C,D,E,F,G,A,B] $ \note -> do
