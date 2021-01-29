@@ -17,8 +17,7 @@ data MetaData = MetaData
                 } deriving Show
 
 findSong :: URL -> IO (Maybe [MetaData])
-findSong url = do
-  scrapeURL url scrapeSongs
+findSong url = scrapeURL url scrapeSongs
 
 scrapeSongs :: Scraper String [MetaData]
 scrapeSongs = chroots ("div" @: [hasClass "searchResultNode"]) $ do

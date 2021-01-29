@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE MultiWayIf #-}
 module Main where
 
-import Data.List          (intercalate)
+import Data.List          (intercalate, isPrefixOf)
 import Rainbow
 import System.Environment (getArgs)
 import Text.Read          (readMaybe)
@@ -12,14 +13,20 @@ import Music
 import Scraper
 
 main :: IO ()
-main = do
-  searchRes <- searchSong . unwords =<< getArgs
-  case searchRes of
+main = getArgs >>= searchSong . unwords
+
+searchSong :: String -> IO ()
+searchSong name = do
+  results <- findSong $ "https://tunebat.com/Search?q=" ++ intercalate "+" (words name)
+  case results of
     Nothing  -> putChunkLn $ fore red "Error retrieving results"
     Just res -> presentResults $ zip [1..] res
 
-searchSong :: String -> IO (Maybe [MetaData])
-searchSong name = findSong $ "https://tunebat.com/Search?q=" ++ intercalate "+" (words name)
+presentResults :: [(Int, MetaData)] -> IO ()
+presentResults mds = do
+  putChunkLn . bold . fore yellow . cp $ "\tResults found: " ++ show (length mds)
+  mapM_ showResult mds
+  selection mds
 
 showResult :: (Int, MetaData) -> IO ()
 showResult (ix, md) = do
@@ -37,20 +44,15 @@ expandResult md = do
     Just key -> drawKeyboard . uncurry resolveScale $ key
   putStrLn ""
 
-presentResults :: [(Int, MetaData)] -> IO ()
-presentResults mds = do
-  putChunkLn . bold . fore yellow . cp $ "\tResults found: " ++ show (length mds)
-  mapM_ showResult mds
-  if null mds then pure () else selection mds
-
 selection :: [(Int, MetaData)] -> IO ()
 selection mds = do
   putChunk . bold . fore blue $ "> "
-  select <- getLine
-  let choice    = readMaybe select >>= flip lookup mds
-      incorrect = putChunkLn . fore red . cp $ "Number out of bounds [1-" ++ show (length mds) ++ "]"
-  if select == "q" || select == ":q"
-  then pure ()
-  else case choice of
-    Nothing -> incorrect       >> selection mds
-    Just md -> expandResult md >> selection mds
+  input <- getLine
+  let choice  = readMaybe input >>= flip lookup mds
+      escapes = ["q", ":q", "quit", "exit"]
+      invalid = putChunkLn . fore red . cp $ "Invalid command or selection"
+  if | input `elem` escapes      -> pure ()
+     | "new " `isPrefixOf` input -> searchSong . drop 4 $ input
+     | otherwise -> case choice of 
+         Just md -> expandResult md >> selection mds
+         Nothing -> invalid         >> selection mds
