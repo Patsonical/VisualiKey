@@ -2,7 +2,7 @@
 {-# LANGUAGE MultiWayIf #-}
 module Main where
 
-import Data.List          (intercalate, isPrefixOf)
+import Data.List          (intercalate, isPrefixOf, nub)
 import Rainbow
 import System.Environment (getArgs)
 import Text.Read          (readMaybe)
@@ -20,7 +20,7 @@ searchSong name = do
   results <- findSong $ "https://tunebat.com/Search?q=" ++ intercalate "+" (words name)
   case results of
     Nothing  -> putChunkLn $ fore red "Error retrieving results"
-    Just res -> presentResults $ zip [1..] res
+    Just res -> presentResults . zip [1..] . nub $ res
 
 presentResults :: [(Int, MetaData)] -> IO ()
 presentResults mds = do

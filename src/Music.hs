@@ -13,7 +13,7 @@ data Note = A | A'
 
 instance CycEnum Note where
 
-data Mode = Major | Minor deriving Show
+data Mode = Major | Minor deriving (Show, Eq)
 
 type Key = (Note, Mode)
 

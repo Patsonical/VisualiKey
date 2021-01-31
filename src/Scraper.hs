@@ -14,7 +14,7 @@ data MetaData = MetaData
                 , _key    :: Maybe Key
                 , _keyFmt :: String
                 , _bpm    :: Maybe Int
-                } deriving Show
+                } deriving (Show, Eq)
 
 findSong :: URL -> IO (Maybe [MetaData])
 findSong url = scrapeURL url scrapeSongs
