@@ -36,7 +36,6 @@ library
       base >=4.7 && <5
     , http-client
     , mtl
-    , parsec
     , rainbow
     , scalpel
     , text
@@ -53,7 +52,6 @@ executable visualikey
       base >=4.7 && <5
     , http-client
     , mtl
-    , parsec
     , rainbow
     , scalpel
     , text
@@ -72,7 +70,6 @@ test-suite visualikey-test
       base >=4.7 && <5
     , http-client
     , mtl
-    , parsec
     , rainbow
     , scalpel
     , text

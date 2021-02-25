@@ -22,7 +22,6 @@ dependencies:
 - base >= 4.7 && < 5
 - scalpel
 - http-client
-- parsec
 - rainbow
 - mtl
 - text

@@ -44,6 +44,15 @@ expandResult md = do
     Just key -> drawKeyboard . uncurry resolveScale $ key
   putStrLn ""
 
+showKey :: String -> IO ()
+showKey raw = do
+  let invalid  = putChunkLn $ fore red "Error parsing key"
+      parseKey [n,m] = maybe invalid draw key
+        where draw = drawKeyboard . uncurry resolveScale
+              key  = zipMaybe (readNote n, readMode m)
+      parseKey _     = invalid
+  parseKey . words $ raw
+
 selection :: [(Int, MetaData)] -> IO ()
 selection mds = do
   putChunk . bold . fore blue $ "> "
@@ -53,6 +62,7 @@ selection mds = do
       invalid = putChunkLn . fore red . cp $ "Invalid command or selection"
   if | input `elem` escapes      -> pure ()
      | "new " `isPrefixOf` input -> searchSong . drop 4 $ input
+     | "key " `isPrefixOf` input -> showKey    . drop 4 $ input
      | otherwise -> case choice of 
          Just md -> expandResult md >> selection mds
          Nothing -> invalid         >> selection mds

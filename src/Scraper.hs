@@ -30,4 +30,4 @@ scrapeSongs = chroots ("div" @: [hasClass "searchResultNode"]) $ do
                     mode   = readMode . (!! 1) $ hRest
                     key    = zipMaybe (note, mode)
                     keyFmt = (formatNote . head) hRest ++ " " ++ hRest !! 1
-                return $ MetaData name artist key keyFmt bpm
+                pure (MetaData name artist key keyFmt bpm)
