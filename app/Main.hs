@@ -62,7 +62,7 @@ selection mds = do
       invalid = putChunkLn . fore red . cp $ "Invalid command or selection"
   if | input `elem` escapes      -> pure ()
      | "new " `isPrefixOf` input -> searchSong . drop 4 $ input
-     | "key " `isPrefixOf` input -> showKey    . drop 4 $ input
+     | "key " `isPrefixOf` input -> (showKey . drop 4) input >> selection mds
      | otherwise -> case choice of 
          Just md -> expandResult md >> selection mds
          Nothing -> invalid         >> selection mds
