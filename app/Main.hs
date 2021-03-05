@@ -2,6 +2,7 @@
 {-# LANGUAGE MultiWayIf #-}
 module Main where
 
+import Control.Monad.State
 import Data.List          (intercalate, isPrefixOf, nub)
 import Rainbow
 import System.Environment (getArgs)
@@ -12,9 +13,54 @@ import Lib
 import Music
 import Scraper
 
+type Result = (Int, MetaData)
+
 main :: IO ()
 main = getArgs >>= searchSong . unwords
 
+controlLoop :: StateT [Result] IO ()
+controlLoop = do
+  lift . putChunk . bold . fore blue $ "> "
+  input   <- lift getLine
+  results <- get
+  if head input == ':' then command (tail input) else pure ()
+  pure ()
+
+showError :: String -> IO ()
+showError = putChunkLn . fore red . cp
+
+strip :: String -> String
+strip = dropWhile (==' ')
+
+command :: String -> StateT [Result] IO ()
+command (cmd:rest) = 
+  let cmds = [ ('q', pure ()) 
+             , ('s', search >> controlLoop) 
+             , ('k', key    >> controlLoop)
+             ]
+      search = searchSongST   . strip $ rest
+      key    = lift . showKey . strip $ rest
+  in case lookup cmd cmds of
+    Just resolved -> resolved
+    Nothing  -> lift (showError "Invalid command")
+command _ = lift (showError "Invalid command")
+
+-- Replaced by controlLoop
+selection :: [(Int, MetaData)] -> IO ()
+selection mds = do
+  putChunk . bold . fore blue $ "> "
+  input <- getLine
+  let choice  = readMaybe input >>= flip lookup mds
+      escapes = ["q", ":q", "quit", "exit"]
+      invalid = putChunkLn . fore red . cp $ "Invalid command or selection"
+  if | input `elem` escapes      -> pure ()
+     | "new " `isPrefixOf` input -> searchSong . drop 4 $ input
+     | "key " `isPrefixOf` input -> (showKey . drop 4) input >> selection mds
+     | otherwise -> case choice of 
+         Just md -> expandResult md >> selection mds
+         Nothing -> invalid         >> selection mds
+
+-- Replaced by searchSongST
 searchSong :: String -> IO ()
 searchSong name = do
   results <- findSong $ "https://tunebat.com/Search?q=" ++ intercalate "+" (words name)
@@ -22,6 +68,23 @@ searchSong name = do
     Nothing  -> putChunkLn $ fore red "Error retrieving results"
     Just res -> presentResults . zip [1..] . nub $ res
 
+searchSongST :: String -> StateT [Result] IO ()
+searchSongST name = do
+  results <- lift . findSong $ "https://tunebat.com/Search?q=" ++ intercalate "+" (words name)
+  case results of
+    Nothing  -> lift . putChunkLn $ fore red "Error retrieving results"
+    Just res -> put (zip [1..] . nub $ res) >> presentResultsST
+  pure ()
+
+presentResultsST :: StateT [Result] IO ()
+presentResultsST = do
+  results <- get
+  lift $ do
+    putChunkLn . bold . fore yellow . cp $ "\tResults found: " ++ show (length results)
+    mapM_ showResult results
+  controlLoop
+
+-- Replaced by presentResultsST
 presentResults :: [(Int, MetaData)] -> IO ()
 presentResults mds = do
   putChunkLn . bold . fore yellow . cp $ "\tResults found: " ++ show (length mds)
@@ -52,17 +115,4 @@ showKey raw = do
               key  = zipMaybe (readNote n, readMode m)
       parseKey _     = invalid
   parseKey . words $ raw
-
-selection :: [(Int, MetaData)] -> IO ()
-selection mds = do
-  putChunk . bold . fore blue $ "> "
-  input <- getLine
-  let choice  = readMaybe input >>= flip lookup mds
-      escapes = ["q", ":q", "quit", "exit"]
-      invalid = putChunkLn . fore red . cp $ "Invalid command or selection"
-  if | input `elem` escapes      -> pure ()
-     | "new " `isPrefixOf` input -> searchSong . drop 4 $ input
-     | "key " `isPrefixOf` input -> (showKey . drop 4) input >> selection mds
-     | otherwise -> case choice of 
-         Just md -> expandResult md >> selection mds
-         Nothing -> invalid         >> selection mds
+  putStrLn ""
