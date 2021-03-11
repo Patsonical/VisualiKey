@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE LambdaCase #-}
 module Main where
 
 import Control.Monad.State
@@ -16,7 +16,17 @@ import Scraper
 type Result = (Int, MetaData)
 
 main :: IO ()
-main = getArgs >>= searchSong . unwords
+main = getArgs >>= start . handleArgs
+
+start :: StateT [s] IO a -> IO ()
+start run = runStateT run [] >> pure ()
+
+handleArgs :: [String] -> StateT [Result] IO ()
+handleArgs = \case
+  []          -> controlLoop
+  ("-s":rest) -> searchSongST   . unwords $ rest
+  ("-k":rest) -> lift . showKey . unwords $ rest
+  other       -> searchSongST   . unwords $ other
 
 controlLoop :: StateT [Result] IO ()
 controlLoop = do
@@ -55,36 +65,12 @@ select input = do
       Just res -> lift (expandResult res)
   controlLoop
 
--- Replaced by controlLoop
-selection :: [(Int, MetaData)] -> IO ()
-selection mds = do
-  putChunk . bold . fore blue $ "> "
-  input <- getLine
-  let choice  = readMaybe input >>= flip lookup mds
-      escapes = ["q", ":q", "quit", "exit"]
-      invalid = putChunkLn . fore red . cp $ "Invalid command or selection"
-  if | input `elem` escapes      -> pure ()
-     | "new " `isPrefixOf` input -> searchSong . drop 4 $ input
-     | "key " `isPrefixOf` input -> (showKey . drop 4) input >> selection mds
-     | otherwise -> case choice of 
-         Just md -> expandResult md >> selection mds
-         Nothing -> invalid         >> selection mds
-
--- Replaced by searchSongST
-searchSong :: String -> IO ()
-searchSong name = do
-  results <- findSong $ "https://tunebat.com/Search?q=" ++ intercalate "+" (words name)
-  case results of
-    Nothing  -> putChunkLn $ fore red "Error retrieving results"
-    Just res -> presentResults . zip [1..] . nub $ res
-
 searchSongST :: String -> StateT [Result] IO ()
 searchSongST name = do
   results <- lift . findSong $ "https://tunebat.com/Search?q=" ++ intercalate "+" (words name)
   case results of
     Nothing  -> lift . putChunkLn $ fore red "Error retrieving results"
     Just res -> put (zip [1..] . nub $ res) >> presentResultsST
-  pure ()
 
 presentResultsST :: StateT [Result] IO ()
 presentResultsST = do
@@ -92,14 +78,6 @@ presentResultsST = do
   lift $ do
     putChunkLn . bold . fore yellow . cp $ "\tResults found: " ++ show (length results)
     mapM_ showResult results
-  controlLoop
-
--- Replaced by presentResultsST
-presentResults :: [(Int, MetaData)] -> IO ()
-presentResults mds = do
-  putChunkLn . bold . fore yellow . cp $ "\tResults found: " ++ show (length mds)
-  mapM_ showResult mds
-  selection mds
 
 showResult :: (Int, MetaData) -> IO ()
 showResult (ix, md) = do
