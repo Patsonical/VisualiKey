@@ -22,11 +22,13 @@ start :: StateT [s] IO a -> IO ()
 start run = runStateT run [] >> pure ()
 
 handleArgs :: [String] -> StateT [Result] IO ()
-handleArgs = \case
-  []          -> controlLoop
-  ("-s":rest) -> searchSongST   . unwords $ rest
-  ("-k":rest) -> lift . showKey . unwords $ rest
-  other       -> searchSongST   . unwords $ other
+handleArgs args = do
+  case args of
+    []          -> pure ()
+    ("-s":rest) -> searchSongST   . unwords $ rest
+    ("-k":rest) -> lift . showKey . unwords $ rest
+    other       -> searchSongST   . unwords $ other
+  controlLoop
 
 controlLoop :: StateT [Result] IO ()
 controlLoop = do
