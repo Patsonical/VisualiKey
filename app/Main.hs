@@ -22,9 +22,9 @@ controlLoop :: StateT [Result] IO ()
 controlLoop = do
   lift . putChunk . bold . fore blue $ "> "
   input   <- lift getLine
-  results <- get
-  if head input == ':' then command (tail input) else pure ()
-  pure ()
+  case input of
+    (':' : cmd) -> command cmd
+    nonCmd      -> select nonCmd
 
 showError :: String -> IO ()
 showError = putChunkLn . fore red . cp
@@ -33,17 +33,27 @@ strip :: String -> String
 strip = dropWhile (==' ')
 
 command :: String -> StateT [Result] IO ()
-command (cmd:rest) = 
+command (cmd:rest) =
   let cmds = [ ('q', pure ()) 
              , ('s', search >> controlLoop) 
              , ('k', key    >> controlLoop)
              ]
-      search = searchSongST   . strip $ rest
-      key    = lift . showKey . strip $ rest
+      search = (searchSongST   . strip) rest
+      key    = (lift . showKey . strip) rest
   in case lookup cmd cmds of
     Just resolved -> resolved
     Nothing  -> lift (showError "Invalid command")
-command _ = lift (showError "Invalid command")
+command _ = lift (showError "Invalid command") >> controlLoop
+
+select :: String -> StateT [Result] IO ()
+select input = do
+  results <- get
+  case readMaybe input of
+    Nothing -> lift $ showError "Invalid selection, enter a number or :[cmd]"
+    Just ix -> case lookup ix results of
+      Nothing  -> lift $ showError "Selection out of bounds"
+      Just res -> lift (expandResult res)
+  controlLoop
 
 -- Replaced by controlLoop
 selection :: [(Int, MetaData)] -> IO ()
