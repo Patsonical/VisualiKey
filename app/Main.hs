@@ -75,10 +75,13 @@ searchSongST name = do
 
 presentResultsST :: StateT [Result] IO ()
 presentResultsST = do
+  let foundFormat = putChunkLn . bold . fore yellow . cp
   results <- get
   lift $ do
-    putChunkLn . bold . fore yellow . cp $ "\tResults found: " ++ show (length results)
-    mapM_ showResult results
+    case results of 
+      []    -> foundFormat "\tNo results found"
+      [res] -> foundFormat "\tOne result found" >> expandResult (snd res)
+      _     -> foundFormat ("\tResults found: " ++ show (length results)) >> mapM_ showResult results
 
 showResult :: (Int, MetaData) -> IO ()
 showResult (ix, md) = do
@@ -92,13 +95,13 @@ expandResult md = do
   putChunkLn . bold . fore green  . cp $ _name md
   putChunkLn . bold . fore yellow . cp $ replicate 22 ' ' ++ "Key: " ++ _keyFmt md
   case _key md of
-    Nothing  -> putChunkLn $ fore red "Error parsing key"
+    Nothing  -> showError "Error parsing key"
     Just key -> drawKeyboard . uncurry resolveScale $ key
   putStrLn ""
 
 showKey :: String -> IO ()
 showKey raw = do
-  let invalid  = putChunkLn $ fore red "Error parsing key"
+  let invalid  = showError "Error parsing key"
       parseKey [n,m] = maybe invalid draw key
         where draw = drawKeyboard . uncurry resolveScale
               key  = zipMaybe (readNote n, readMode m)
