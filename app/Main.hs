@@ -21,13 +21,16 @@ start :: StateT [s] IO a -> IO ()
 start run = runStateT run [] >> pure ()
 
 handleArgs :: [String] -> StateT [Result] IO ()
-handleArgs args = do
-  case args of
-    []          -> pure ()
-    ("-s":rest) -> searchSongST   . unwords $ rest
-    ("-k":rest) -> lift . showKey . unwords $ rest
-    other       -> searchSongST   . unwords $ other
-  controlLoop
+handleArgs args =
+  let search query = (searchSongST   . unwords) query >> controlLoop
+      key    query = (lift . showKey . unwords) query >> controlLoop
+      lucky  query = (imFeelingLucky . unwords) query
+  in case args of
+    []          -> controlLoop
+    ("-s":rest) -> search rest
+    ("-k":rest) -> key    rest
+    ("-l":rest) -> lucky  rest
+    other       -> search other
 
 controlLoop :: StateT [Result] IO ()
 controlLoop = do
@@ -70,8 +73,17 @@ searchSongST :: String -> StateT [Result] IO ()
 searchSongST name = do
   results <- lift . findSong $ "https://tunebat.com/Search?q=" ++ intercalate "+" (words name)
   case results of
-    Nothing  -> lift . putChunkLn $ fore red "Error retrieving results"
+    Nothing  -> lift . showError $ "Error retrieving results"
     Just res -> put (zip [1..] . nub $ res) >> presentResultsST
+
+imFeelingLucky :: String -> StateT [Result] IO ()
+imFeelingLucky name = do
+  results <- lift . findSong $ "https://tunebat.com/Search?q=" ++ intercalate "+" (words name)
+  case results of
+    Nothing  -> lift . showError $ "Error retrieving results"
+    Just res -> case res of
+      []    -> lift . putChunkLn . bold . fore yellow $ "No results found"
+      (x:_) -> lift . expandResult $ x
 
 presentResultsST :: StateT [Result] IO ()
 presentResultsST = do
