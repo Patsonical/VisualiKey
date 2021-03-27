@@ -1,5 +1,7 @@
 module Music where
 
+import Data.Char (toLower)
+
 import Lib
 
 data Note = A | A'
@@ -26,57 +28,93 @@ resolveScale root mode = case mode of
   Minor -> cycEnumFrom root !!! [0,2,3,5,7,8,10]
 
 readMode :: String -> Maybe Mode
-readMode text
-  | text == "Major" = Just Major
-  | text == "Minor" = Just Minor
-  | otherwise       = Nothing
+readMode raw = case map toLower raw of
+  "major" -> Just Major
+  "minor" -> Just Minor
+  _       -> Nothing
 
 readNote :: String -> Maybe Note
-readNote text
-  | text == "A"      = Just A
-  | text == "B"      = Just B
-  | text == "C"      = Just C
-  | text == "D"      = Just D
-  | text == "E"      = Just E
-  | text == "F"      = Just F
-  | text == "G"      = Just G
-  | text == "A#"     = Just A'
-  | text == "B#"     = Just C
-  | text == "C#"     = Just C'
-  | text == "D#"     = Just D'
-  | text == "E#"     = Just F
-  | text == "F#"     = Just F'
-  | text == "G#"     = Just G'
-  | text == "A\9837" = Just G'
-  | text == "B\9837" = Just A'
-  | text == "C\9837" = Just B
-  | text == "D\9837" = Just C'
-  | text == "E\9837" = Just D'
-  | text == "F\9837" = Just E
-  | text == "G\9837" = Just F'
-  | otherwise        = Nothing
+readNote raw = case map toLower raw of
+  -- Pure notes
+  "a"  -> Just A
+  "b"  -> Just B
+  "c"  -> Just C
+  "d"  -> Just D
+  "e"  -> Just E
+  "f"  -> Just F
+  "g"  -> Just G
+  -- Sharps
+  "a♯" -> Just A'
+  "b♯" -> Just C
+  "c♯" -> Just C'
+  "d♯" -> Just D'
+  "e♯" -> Just F
+  "f♯" -> Just F'
+  "g♯" -> Just G'
+  "a#" -> Just A'
+  "b#" -> Just C
+  "c#" -> Just C'
+  "d#" -> Just D'
+  "e#" -> Just F
+  "f#" -> Just F'
+  "g#" -> Just G'
+  -- Flats
+  "a♭" -> Just G'
+  "b♭" -> Just A'
+  "c♭" -> Just B
+  "d♭" -> Just C'
+  "e♭" -> Just D'
+  "f♭" -> Just E
+  "g♭" -> Just F'
+  "ab" -> Just G'
+  "bb" -> Just A'
+  "cb" -> Just B
+  "db" -> Just C'
+  "eb" -> Just D'
+  "fb" -> Just E
+  "gb" -> Just F'
+  -- Other
+  _    -> Nothing
 
 formatNote :: String -> String
-formatNote text
-  | text == "A"      = "A"
-  | text == "B"      = "B"
-  | text == "C"      = "C"
-  | text == "D"      = "D"
-  | text == "E"      = "E"
-  | text == "F"      = "F"
-  | text == "G"      = "G"
-  | text == "A#"     = "A♯"
-  | text == "B#"     = "B♯"
-  | text == "C#"     = "C♯"
-  | text == "D#"     = "D♯"
-  | text == "E#"     = "E♯"
-  | text == "F#"     = "F♯"
-  | text == "G#"     = "G♯"
-  | text == "A\9837" = "A♭"
-  | text == "B\9837" = "B♭"
-  | text == "C\9837" = "C♭"
-  | text == "D\9837" = "D♭"
-  | text == "E\9837" = "E♭"
-  | text == "F\9837" = "F♭"
-  | text == "G\9837" = "G♭"
-  | otherwise        = ""
+formatNote raw = case map toLower raw of
+  -- Pure notes
+  "a"  -> "A"
+  "b"  -> "B"
+  "c"  -> "C"
+  "d"  -> "D"
+  "e"  -> "E"
+  "f"  -> "F"
+  "g"  -> "G"
+  -- Sharps
+  "a♯" -> "A♯"
+  "b♯" -> "B♯"
+  "c♯" -> "C♯"
+  "d♯" -> "D♯"
+  "e♯" -> "E♯"
+  "f♯" -> "F♯"
+  "g♯" -> "G♯"
+  "a#" -> "A♯"
+  "b#" -> "B♯"
+  "c#" -> "C♯"
+  "d#" -> "D♯"
+  "e#" -> "E♯"
+  "f#" -> "F♯"
+  "g#" -> "G♯"
+  -- Flats
+  "a♭" -> "A♭"
+  "b♭" -> "B♭"
+  "c♭" -> "C♭"
+  "d♭" -> "D♭"
+  "e♭" -> "E♭"
+  "f♭" -> "F♭"
+  "g♭" -> "G♭"
+  "ab" -> "A♭"
+  "bb" -> "B♭"
+  "cb" -> "C♭"
+  "db" -> "D♭"
+  "eb" -> "E♭"
+  "fb" -> "F♭"
+  "gb" -> "G♭"
+  -- Other
+  _    -> ""

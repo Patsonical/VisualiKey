@@ -23,7 +23,7 @@ start run = runStateT run [] >> pure ()
 handleArgs :: [String] -> StateT [Result] IO ()
 handleArgs args =
   let search query = (searchSongST   . unwords) query >> controlLoop
-      key    query = (lift . showKey . unwords) query >> controlLoop
+      key    query = (lift . showKey . unwords) query
       lucky  query = (imFeelingLucky . unwords) query
   in case args of
     []          -> controlLoop
