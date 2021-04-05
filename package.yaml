@@ -20,10 +20,14 @@ description: A simple command-line program to find the key of a song (queried vi
 
 dependencies:
 - base >= 4.7 && < 5
-- scalpel
+- aeson
 - http-client
-- rainbow
+- http-client-tls
+- http-types
 - mtl
+- rainbow
+- req
+- scalpel
 - text
 
 library:

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Scraper (MetaData(..), findSong) where
+module Scraper (MetaData(..), findSong, findDebug) where
 
 import Text.HTML.Scalpel
 import Text.Read         (readMaybe)
@@ -19,6 +19,8 @@ data MetaData = MetaData
 findSong :: URL -> IO (Maybe [MetaData])
 findSong url = scrapeURL url scrapeSongs
 
+findDebug url = scrapeURL url scrapeDebug
+
 scrapeSongs :: Scraper String [MetaData]
 scrapeSongs = chroots ("div" @: [hasClass "searchResultNode"]) $ do
                 artist <- text  $ "div" @: [hasClass "search-artist-name"]
@@ -31,3 +33,6 @@ scrapeSongs = chroots ("div" @: [hasClass "searchResultNode"]) $ do
                     key    = zipMaybe (note, mode)
                     keyFmt = (formatNote . head) hRest ++ " " ++ hRest !! 1
                 pure (MetaData name artist key keyFmt bpm)
+
+scrapeDebug :: Scraper String String
+scrapeDebug = html "html"

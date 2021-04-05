@@ -11,6 +11,7 @@ import Keyboard
 import Lib
 import Music
 import Scraper
+import SpotifyAPI
 
 type Result = (Int, MetaData)
 
@@ -22,7 +23,7 @@ start run = runStateT run [] >> pure ()
 
 handleArgs :: [String] -> StateT [Result] IO ()
 handleArgs args =
-  let search query = (searchSongST   . unwords) query >> controlLoop
+  let search query = (searchSong     . unwords) query >> controlLoop
       key    query = (lift . showKey . unwords) query
       lucky  query = (imFeelingLucky . unwords) query
   in case args of
@@ -40,19 +41,13 @@ controlLoop = do
     (':' : cmd) -> command cmd
     nonCmd      -> select nonCmd
 
-showError :: String -> IO ()
-showError = putChunkLn . fore red . cp
-
-strip :: String -> String
-strip = dropWhile (==' ')
-
 command :: String -> StateT [Result] IO ()
 command (cmd:rest) =
   let cmds = [ ('q', pure ()) 
              , ('s', search >> controlLoop) 
              , ('k', key    >> controlLoop)
              ]
-      search = (searchSongST   . strip) rest
+      search = (searchSong     . strip) rest
       key    = (lift . showKey . strip) rest
   in case lookup cmd cmds of
     Just resolved -> resolved
@@ -69,12 +64,12 @@ select input = do
       Just res -> lift (expandResult res)
   controlLoop
 
-searchSongST :: String -> StateT [Result] IO ()
-searchSongST name = do
+searchSong :: String -> StateT [Result] IO ()
+searchSong name = do
   results <- lift . findSong $ "https://tunebat.com/Search?q=" ++ intercalate "+" (words name)
   case results of
     Nothing  -> lift . showError $ "Error retrieving results"
-    Just res -> put (zip [1..] . nub $ res) >> presentResultsST
+    Just res -> put (zip [1..] . nub $ res) >> presentResults
 
 imFeelingLucky :: String -> StateT [Result] IO ()
 imFeelingLucky name = do
@@ -85,8 +80,8 @@ imFeelingLucky name = do
       []    -> lift . putChunkLn . bold . fore yellow $ "No results found"
       (x:_) -> lift . expandResult $ x
 
-presentResultsST :: StateT [Result] IO ()
-presentResultsST = do
+presentResults :: StateT [Result] IO ()
+presentResults = do
   let foundFormat = putChunkLn . bold . fore yellow . cp
   results <- get
   lift $ do

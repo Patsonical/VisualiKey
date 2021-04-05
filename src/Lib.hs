@@ -1,7 +1,7 @@
 module Lib where
 
 import Data.Text (pack)
-import Rainbow   (Chunk, chunk)
+import Rainbow
 
 class (Bounded a, Enum a) => CycEnum a where
   toCycEnum         :: Int -> a
@@ -30,3 +30,9 @@ zipMaybe x = do
 
 cp :: String -> Chunk
 cp = chunk . pack
+
+showError :: String -> IO ()
+showError = putChunkLn . fore red . cp
+
+strip :: String -> String
+strip = dropWhile (==' ')
