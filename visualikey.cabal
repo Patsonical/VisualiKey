@@ -36,6 +36,7 @@ library
   build-depends:
       aeson
     , base >=4.7 && <5
+    , base64-bytestring
     , bytestring
     , directory
     , http-client
@@ -59,6 +60,7 @@ executable visualikey
   build-depends:
       aeson
     , base >=4.7 && <5
+    , base64-bytestring
     , bytestring
     , directory
     , http-client
@@ -84,6 +86,7 @@ test-suite visualikey-test
   build-depends:
       aeson
     , base >=4.7 && <5
+    , base64-bytestring
     , bytestring
     , directory
     , http-client

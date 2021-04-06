@@ -6,22 +6,14 @@ import Control.Monad.Trans
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
 import Network.HTTP.Types
-import qualified Network.HTTP.Req as R
 
 import Data.Aeson
 import qualified Data.ByteString.Lazy as Lbs
+import qualified Data.ByteString.Base64.Lazy as B64
 import System.Directory
 import Data.Time.Clock.System
-
-reqTest :: IO ()
-reqTest = R.runReq R.defaultHttpConfig $ do
-  response <- R.req
-    R.GET
-    (R.https "example.org")
-    R.NoReqBody
-    R.lbsResponse
-    mempty
-  liftIO $ print (R.responseBody response)
+import Data.Maybe
+import Data.ByteString.Lazy.Char8
 
 httpTest :: IO ()
 httpTest = do
@@ -54,12 +46,9 @@ instance FromJSON SpotifyClient where
   parseJSON = withObject "SpotifyClient" $ \v ->
     SpotifyClient <$> v .: "client_id" <*> v .: "client_secret"
 
-getClient :: IO ()
-getClient = do
-  configFile <- getXdgDirectory XdgConfig "visualikey/config.json"
-  configRaw  <- Lbs.readFile configFile
-  let client = decode configRaw :: Maybe SpotifyClient
-  print client
+getClient :: IO (Maybe SpotifyClient)
+getClient = getConfig >>= Lbs.readFile >>= pure . decode
+  where getConfig = getXdgDirectory XdgConfig "visualikey/config.json"
 
 data Token = Token {
     token  :: String
@@ -76,3 +65,26 @@ instance ToJSON Token where
   
   toEncoding (Token token expiry) =
     pairs ("oauth_token" .= token <> "expiry_time" .= expiry)
+
+getToken :: Manager -> IO ()
+getToken manager = do
+  client <- pack . (\c -> clientId c ++ ":" ++ clientSecret c) . fromJust <$> getClient
+  let b64Client = Lbs.append "Basic " (B64.encode client)
+      headers   = [ ("Authorization", Lbs.toStrict b64Client)
+                  , ("Content-Type", "application/x-www-form-urlencoded")
+                  ]
+      body      = "grant_type=client_credentials"
+      request   = defaultRequest { method = "POST"
+                                 , port = 443
+                                 , secure = True
+                                 , host = "accounts.spotify.com"
+                                 , path = "/api/token"
+                                 , requestHeaders = headers
+                                 , requestBody = body
+                                 }
+  print client
+  print headers
+  print request
+  response    <- httpLbs request manager
+  currentTime <- fromIntegral . systemSeconds <$> getSystemTime
+  print response
