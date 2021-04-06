@@ -21,6 +21,8 @@ description: A simple command-line program to find the key of a song (queried vi
 dependencies:
 - base >= 4.7 && < 5
 - aeson
+- bytestring
+- directory
 - http-client
 - http-client-tls
 - http-types
@@ -29,6 +31,7 @@ dependencies:
 - req
 - scalpel
 - text
+- time
 
 library:
   source-dirs: src
