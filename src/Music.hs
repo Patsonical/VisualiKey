@@ -3,21 +3,9 @@ module Music where
 import Data.Char (toLower)
 
 import Lib
-
-data Note = A | A'
-          | B -- B' == C
-          | C | C'
-          | D | D'
-          | E -- E' == F
-          | F | F'
-          | G | G'
-          deriving (Show, Eq, Enum, Bounded)
+import Types
 
 instance CycEnum Note where
-
-data Mode = Major | Minor deriving (Show, Eq)
-
-type Key = (Note, Mode)
 
 (!!!) :: [a] -> [Int] -> [a]
 xs !!! is = map (xs !!) is

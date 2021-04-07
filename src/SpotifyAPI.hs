@@ -1,7 +1,11 @@
+-- vim:foldmethod=marker
 {-# LANGUAGE OverloadedStrings #-}
+
 module SpotifyAPI where
 
 import Control.Monad.Trans
+import Control.Monad.State
+import Control.Monad.Except
 
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
@@ -14,7 +18,12 @@ import System.Directory
 import Data.Time.Clock.System
 import Data.Maybe
 import Data.ByteString.Lazy.Char8
+import Data.Functor ((<&>))
 
+import Types
+import Instances
+
+-- TESTING {{{
 httpTest :: IO ()
 httpTest = do
   manager <- newManager tlsManagerSettings
@@ -36,55 +45,39 @@ data Date = Date {
 instance FromJSON Date where
   parseJSON = withObject "Date" $ \v -> 
     Date <$> v .: "time" <*> v .: "date" <*> v .: "milliseconds_since_epoch"
-
-data SpotifyClient = SpotifyClient {
-    clientId      :: String
-  , clientSecret  :: String
-  } deriving Show
-
-instance FromJSON SpotifyClient where
-  parseJSON = withObject "SpotifyClient" $ \v ->
-    SpotifyClient <$> v .: "client_id" <*> v .: "client_secret"
+-- }}}
 
 getClient :: IO (Maybe SpotifyClient)
-getClient = getConfig >>= Lbs.readFile >>= pure . decode
+getClient = getConfig >>= Lbs.readFile <&> decode
   where getConfig = getXdgDirectory XdgConfig "visualikey/config.json"
 
-data Token = Token {
-    token  :: String
-  , expiry :: Int
-  }
+okResponse :: Response a -> Bool
+okResponse res = (statusCode . responseStatus) res == 200
 
-instance FromJSON Token where
-  parseJSON = withObject "Token" $ \v ->
-    Token <$> v .: "oauth_token" <*> v .: "expiry_time"
-
-instance ToJSON Token where
-  toJSON (Token token expiry) = 
-    object ["oauth_token" .= token, "expiry_time" .= expiry]
-  
-  toEncoding (Token token expiry) =
-    pairs ("oauth_token" .= token <> "expiry_time" .= expiry)
-
-getToken :: Manager -> IO ()
-getToken manager = do
-  client <- pack . (\c -> clientId c ++ ":" ++ clientSecret c) . fromJust <$> getClient
+-- runExceptT . flip evalStateT st $ getToken
+getToken :: VisualiKey Token
+getToken = do
+  client <- liftIO $ pack . show . fromJust <$> getClient
   let b64Client = Lbs.append "Basic " (B64.encode client)
       headers   = [ ("Authorization", Lbs.toStrict b64Client)
                   , ("Content-Type", "application/x-www-form-urlencoded")
                   ]
       body      = "grant_type=client_credentials"
-      request   = defaultRequest { method = "POST"
-                                 , port = 443
-                                 , secure = True
-                                 , host = "accounts.spotify.com"
-                                 , path = "/api/token"
-                                 , requestHeaders = headers
-                                 , requestBody = body
-                                 }
-  print client
-  print headers
-  print request
-  response    <- httpLbs request manager
-  currentTime <- fromIntegral . systemSeconds <$> getSystemTime
-  print response
+      request   = defaultRequest { 
+          method = "POST"
+        , port = 443
+        , secure = True
+        , host = "accounts.spotify.com"
+        , path = "/api/token"
+        , requestHeaders = headers
+        , requestBody = body
+        }
+  manager <- gets manager
+  response    <- liftIO $ httpLbs request manager
+  unless (okResponse response) $
+    throwError ("Error getting access token:\n" ++ show response)
+  currentTime <- liftIO $ fromIntegral . systemSeconds <$> getSystemTime
+  let body = responseBody response
+  case decode body of
+    Nothing               -> throwError $ "Error parsing token:\n" ++ show body
+    Just (Token tk ty ex) -> pure       $ Token tk ty (ex + currentTime)

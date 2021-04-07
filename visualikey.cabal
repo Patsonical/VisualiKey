@@ -24,11 +24,13 @@ source-repository head
 
 library
   exposed-modules:
+      Instances
       Keyboard
       Lib
       Music
       Scraper
       SpotifyAPI
+      Types
   other-modules:
       Paths_visualikey
   hs-source-dirs:

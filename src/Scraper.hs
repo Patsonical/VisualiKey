@@ -7,6 +7,7 @@ import Text.Read         (readMaybe)
 
 import Lib
 import Music
+import Types hiding (MetaData(..))
 
 data MetaData = MetaData 
                 { _name   :: String

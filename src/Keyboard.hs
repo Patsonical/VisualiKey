@@ -9,7 +9,7 @@ import Data.Text            (pack)
 import Rainbow
 
 import Lib
-import Music
+import Types
 
 noteChar :: Char -> Note -> Int -> ReaderT [Note] IO ()
 noteChar c note count = do

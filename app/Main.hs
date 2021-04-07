@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 module Main where
 
 import Control.Monad.State
@@ -7,19 +8,29 @@ import Rainbow
 import System.Environment (getArgs)
 import Text.Read          (readMaybe)
 
+import Network.HTTP.Client
+import Network.HTTP.Client.TLS
+import Network.HTTP.Types
+
 import Keyboard
 import Lib
 import Music
 import Scraper
 import SpotifyAPI
+import Types hiding (MetaData(..), Result(..))
 
-type Result = (Int, MetaData)
+type Result = (Int, MetaData) -- TEMPORARY
+
+handleError :: Either VKError () -> IO ()
+handleError = \case
+  Left e   -> putStrLn e >> pure ()
+  Right () -> pure ()
 
 main :: IO ()
 main = getArgs >>= start . handleArgs
 
-start :: StateT [s] IO a -> IO ()
-start run = runStateT run [] >> pure ()
+start :: StateT [s] IO a -> IO a
+start = flip evalStateT []
 
 handleArgs :: [String] -> StateT [Result] IO ()
 handleArgs args =
