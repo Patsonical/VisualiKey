@@ -20,6 +20,7 @@ import Data.Maybe
 import Data.ByteString.Lazy.Char8
 import Data.Functor ((<&>))
 
+import Lib
 import Types
 import Instances
 
@@ -47,17 +48,40 @@ instance FromJSON Date where
     Date <$> v .: "time" <*> v .: "date" <*> v .: "milliseconds_since_epoch"
 -- }}}
 
-getClient :: IO (Maybe SpotifyClient)
-getClient = getConfig >>= Lbs.readFile <&> decode
-  where getConfig = getXdgDirectory XdgConfig "visualikey/config.json"
+runVK :: VKState -> VisualiKey a -> IO (Either VKError a)
+runVK st = runExceptT . flip evalStateT st
+
+testVK :: VisualiKey a -> IO (Either VKError a)
+testVK vk = do
+  manager <- newManager tlsManagerSettings
+  let st = VKState manager (Token "" "" 0) []
+  runVK st vk
+
+getJSONConfig :: FromJSON a => String -> VisualiKey a
+getJSONConfig file = do
+  let getConfig = getXdgDirectory XdgConfig ("visualikey/" ++ file)
+  cfg <- catchIO (Lbs.readFile =<< getConfig)
+  case decode cfg of
+    Nothing  -> throwError ("Error decoding file: " ++ file)
+    Just cli -> pure cli
+
+getClient :: VisualiKey SpotifyClient
+getClient = getJSONConfig "client.json"
+
+getTokenFromFile :: VisualiKey Token
+getTokenFromFile = do
+  token <- getJSONConfig "token.json"
+  currentTime <- liftIO $ fromIntegral . systemSeconds <$> getSystemTime
+  if expires_in token < currentTime
+  then throwError "Access token expired"
+  else pure token
 
 okResponse :: Response a -> Bool
 okResponse res = (statusCode . responseStatus) res == 200
 
--- runExceptT . flip evalStateT st $ getToken
-getToken :: VisualiKey Token
-getToken = do
-  client <- liftIO $ pack . show . fromJust <$> getClient
+getTokenFromAPI :: VisualiKey Token
+getTokenFromAPI = do
+  client <- pack . show <$> getClient
   let b64Client = Lbs.append "Basic " (B64.encode client)
       headers   = [ ("Authorization", Lbs.toStrict b64Client)
                   , ("Content-Type", "application/x-www-form-urlencoded")
@@ -81,3 +105,5 @@ getToken = do
   case decode body of
     Nothing               -> throwError $ "Error parsing token:\n" ++ show body
     Just (Token tk ty ex) -> pure       $ Token tk ty (ex + currentTime)
+
+-- Now this `testVK (getTokenFromFile <|> getTokenFromAPI)` *just works*
