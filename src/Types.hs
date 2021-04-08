@@ -22,17 +22,11 @@ data Mode = Major | Minor deriving (Show, Eq)
 
 type Key = (Note, Mode)
 
-data MetaData = MetaData {
-    _name   :: String
-  , _artist :: String
-  , _key    :: Maybe Key
-  } deriving (Show, Eq)
-
-type Result = (Int, MetaData)
+type Result = (Int, FinalTrack)
 
 data SpotifyClient = SpotifyClient {
-    clientId      :: String
-  , clientSecret  :: String
+    client_id     :: String
+  , client_secret :: String
   } deriving Generic
 
 instance Show SpotifyClient where
@@ -60,8 +54,11 @@ type VKError = String
 type VisualiKey = StateT VKState (ExceptT VKError IO)
 
 -- Response Types {{{
+newtype SearchResults = SearchResults {
+    tracks      :: TrackList
+  } deriving (Show, Generic)
 newtype TrackList = TrackList {
-    tracks      :: [Track]
+    items       :: [Track]
   } deriving (Show, Generic)
 
 data Track = Track {
@@ -74,9 +71,22 @@ newtype Artist = Artist {
     artist_name :: String
   } deriving (Show, Generic)
 
+data TuneableTrack = TuneableTrack {
+    key         :: Int
+  , mode        :: Int
+  } deriving (Show, Generic)
+
+instance FromJSON SearchResults where
 instance FromJSON TrackList where
 instance FromJSON Track where
 instance FromJSON Artist where
   parseJSON = withObject "Artist" $ \v ->
     Artist <$> v .: "name"
+instance FromJSON TuneableTrack where
 -- }}}
+
+data FinalTrack = FinalTrack {
+    ftName      :: String
+  , ftArtists   :: [String]
+  , ftKey       :: Key
+  } deriving (Show, Eq)

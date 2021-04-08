@@ -17,35 +17,12 @@ import qualified Data.ByteString.Base64.Lazy as B64
 import System.Directory
 import Data.Time.Clock.System
 import Data.Maybe
-import Data.ByteString.Lazy.Char8
+import Data.ByteString.Lazy.Char8 (pack)
+import Data.ByteString.Internal (packChars)
 import Data.Functor ((<&>))
 
 import Lib
 import Types
-
--- TESTING {{{
-httpTest :: IO ()
-httpTest = do
-  manager <- newManager tlsManagerSettings
-  let request = defaultRequest { host = "date.jsontest.com"
-                               , port = 80
-                               , secure = False
-                               , method = "GET"
-                               }
-  response <- responseBody <$> httpLbs request manager
-  let date = decode response :: Maybe Date
-  print date
-
-data Date = Date {
-    time         :: String
-  , date         :: String
-  , msSinceEpoch :: Integer
-  } deriving Show
-
-instance FromJSON Date where
-  parseJSON = withObject "Date" $ \v -> 
-    Date <$> v .: "time" <*> v .: "date" <*> v .: "milliseconds_since_epoch"
--- }}}
 
 runVK :: VKState -> VisualiKey a -> IO (Either VKError a)
 runVK st = runExceptT . flip evalStateT st
@@ -100,8 +77,8 @@ getTokenFromAPI = do
         , requestHeaders = headers
         , requestBody = body
         }
-  manager <- gets manager
-  response    <- liftIO $ httpLbs request manager
+  manager  <- gets manager
+  response <- liftIO $ httpLbs request manager
   unless (okResponse response) $
     throwError ("Error getting access token:\n" ++ show response)
   currentTime <- liftIO $ fromIntegral . systemSeconds <$> getSystemTime
@@ -111,5 +88,36 @@ getTokenFromAPI = do
     Nothing -> throwError $ "Error parsing token:\n" ++ show body
     Just tk -> saveToken tk >> pure tk
 
-getToken :: VisualiKey Token
-getToken = getTokenFromFile <|> getTokenFromAPI
+getToken :: VisualiKey ()
+getToken = do
+  token <- getTokenFromFile <|> getTokenFromAPI
+  modify (\s -> s { oauth = token })
+
+formatToken :: Token -> Lbs.ByteString
+formatToken (Token tk ty _) = pack (ty ++ " " ++ tk)
+
+searchSongSAPI :: String -> VisualiKey SearchResults
+searchSongSAPI searchTerm = do
+  token   <- gets oauth
+  manager <- gets manager
+  let headers   = [ ("Authorization", Lbs.toStrict (formatToken token))
+                  , ("Accept", "application/json")
+                  , ("Content-Type", "application/json")
+                  ]
+      query = packChars $ "type=track&limit=50&offset=0&q=" ++ searchTerm
+      request   = defaultRequest { 
+          method = "GET"
+        , port = 443
+        , secure = True
+        , host = "api.spotify.com"
+        , path = "/v1/search"
+        , requestHeaders = headers
+        , queryString = query
+        }
+  response <- liftIO $ httpLbs request manager
+  unless (okResponse response) $
+    throwError ("Error searching song:\n" ++ show response)
+  let body = responseBody response
+  case decode body of
+    Nothing -> throwError $ "Error parsing tracks:\n" ++ show body
+    Just ts -> pure ts
