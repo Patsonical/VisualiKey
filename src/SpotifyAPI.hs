@@ -1,8 +1,8 @@
--- vim:foldmethod=marker
 {-# LANGUAGE OverloadedStrings #-}
 
 module SpotifyAPI where
 
+import Control.Applicative ((<|>))
 import Control.Monad.Trans
 import Control.Monad.State
 import Control.Monad.Except
@@ -22,7 +22,6 @@ import Data.Functor ((<&>))
 
 import Lib
 import Types
-import Instances
 
 -- TESTING {{{
 httpTest :: IO ()
@@ -57,10 +56,12 @@ testVK vk = do
   let st = VKState manager (Token "" "" 0) []
   runVK st vk
 
+getConfigFile :: String -> IO FilePath
+getConfigFile file = getXdgDirectory XdgConfig ("visualikey/" ++ file)
+
 getJSONConfig :: FromJSON a => String -> VisualiKey a
 getJSONConfig file = do
-  let getConfig = getXdgDirectory XdgConfig ("visualikey/" ++ file)
-  cfg <- catchIO (Lbs.readFile =<< getConfig)
+  cfg <- catchIO (Lbs.readFile =<< getConfigFile file)
   case decode cfg of
     Nothing  -> throwError ("Error decoding file: " ++ file)
     Just cli -> pure cli
@@ -75,6 +76,9 @@ getTokenFromFile = do
   if expires_in token < currentTime
   then throwError "Access token expired"
   else pure token
+
+saveToken :: Token -> VisualiKey ()
+saveToken tk = catchIO (getConfigFile "token.json" >>= flip encodeFile tk)
 
 okResponse :: Response a -> Bool
 okResponse res = (statusCode . responseStatus) res == 200
@@ -102,8 +106,10 @@ getTokenFromAPI = do
     throwError ("Error getting access token:\n" ++ show response)
   currentTime <- liftIO $ fromIntegral . systemSeconds <$> getSystemTime
   let body = responseBody response
-  case decode body of
-    Nothing               -> throwError $ "Error parsing token:\n" ++ show body
-    Just (Token tk ty ex) -> pure       $ Token tk ty (ex + currentTime)
+      updateTime (Token tk ty ex) = Token tk ty (ex + currentTime)
+  case updateTime <$> decode body of
+    Nothing -> throwError $ "Error parsing token:\n" ++ show body
+    Just tk -> saveToken tk >> pure tk
 
--- Now this `testVK (getTokenFromFile <|> getTokenFromAPI)` *just works*
+getToken :: VisualiKey Token
+getToken = getTokenFromFile <|> getTokenFromAPI
