@@ -15,6 +15,21 @@ resolveScale root mode = case mode of
   Major -> cycEnumFrom root !!! [0,2,4,5,7,9,11]
   Minor -> cycEnumFrom root !!! [0,2,3,5,7,8,10]
 
+parseMode :: Int -> Maybe Mode
+parseMode 0 = Just Minor
+parseMode 1 = Just Major
+parseMode _ = Nothing
+
+parseNote :: Int -> Maybe Note
+parseNote n = enumFrom minBound !!? n
+
+getKey :: TuneableTrack -> Maybe Key
+getKey (TuneableTrack _ k m) = (,) <$> parseNote k <*> parseMode m
+
+formatKey :: Key -> String
+formatKey (note, mode) = "" -- TODO
+
+-- DEPRECATED {{{
 readMode :: String -> Maybe Mode
 readMode raw = case map toLower raw of
   "major" -> Just Major
@@ -106,3 +121,4 @@ formatNote raw = case map toLower raw of
   "gb" -> "G♭"
   -- Other
   _    -> ""
+-- }}}

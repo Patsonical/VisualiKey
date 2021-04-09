@@ -9,13 +9,13 @@ import Control.Monad.Except
 import GHC.Generics
 import Data.Aeson hiding (Result(..))
 
-data Note = A | A'
-          | B -- B' == C
-          | C | C'
+data Note = C | C'
           | D | D'
           | E -- E' == F
           | F | F'
           | G | G'
+          | A | A'
+          | B -- B' == C
           deriving (Show, Eq, Enum, Bounded)
 
 data Mode = Major | Minor deriving (Show, Eq)
@@ -67,13 +67,20 @@ data Track = Track {
   , name        :: String
   } deriving (Show, Generic)
 
+instance Eq Track where
+  (Track _ a1 n1) == (Track _ a2 n2) = a1 == a2 && n1 == n2
+
 newtype Artist = Artist {
     artist_name :: String
-  } deriving (Show, Generic)
+  } deriving (Show, Generic, Eq)
 
+newtype AudioFeaturesResults = AudioFeaturesResults {
+    audio_features :: [TuneableTrack]
+  } deriving (Show, Generic)
 data TuneableTrack = TuneableTrack {
-    key         :: Int
-  , mode        :: Int
+    ttId        :: String
+  , ttKey       :: Int
+  , ttMode      :: Int
   } deriving (Show, Generic)
 
 instance FromJSON SearchResults where
@@ -82,7 +89,12 @@ instance FromJSON Track where
 instance FromJSON Artist where
   parseJSON = withObject "Artist" $ \v ->
     Artist <$> v .: "name"
+instance FromJSON AudioFeaturesResults where
 instance FromJSON TuneableTrack where
+  parseJSON = withObject "TuneableTrack" $ \v ->
+    TuneableTrack <$> v .: "id"
+                  <*> v .: "key"
+                  <*> v .: "mode"
 -- }}}
 
 data FinalTrack = FinalTrack {

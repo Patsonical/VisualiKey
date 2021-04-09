@@ -35,6 +35,22 @@ zipMaybe x = do
   b <- snd x
   pure (a,b)
 
+infixl 2 >>+=
+(>>+=) :: Monad m => (a -> m b) -> (a -> m c) -> a -> m c
+a1 >>+= a2 = \v -> a1 v >> a2 v
+
+-- As in Relude
+infix 9 !!?
+(!!?) :: [a] -> Int -> Maybe a
+(!!?) xs i
+    | i < 0     = Nothing
+    | otherwise = go i xs
+  where
+    go :: Int -> [a] -> Maybe a
+    go 0 (x:_)  = Just x
+    go j (_:ys) = go (j - 1) ys
+    go _ []     = Nothing
+
 cp :: String -> Chunk
 cp = chunk . pack
 
@@ -44,8 +60,8 @@ showError = putChunkLn . fore red . cp
 strip :: String -> String
 strip = dropWhile (==' ')
 
-catchIO :: IO a -> VisualiKey a
-catchIO io = do
+safeLiftIO :: IO a -> VisualiKey a
+safeLiftIO io = do
   result <- liftIO $ catch (Right <$> io) (\e -> 
     let str = show (e :: IOException) in pure . Left $ str)
   case result of
