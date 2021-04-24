@@ -3,6 +3,7 @@
 module Main where
 
 import Control.Monad.State
+import Control.Monad.Zip  (mzip)
 import Data.List          (intercalate, isPrefixOf, nub)
 import Rainbow
 import System.Environment (getArgs)
@@ -122,7 +123,7 @@ showKey raw = do
   let invalid  = showError "Error parsing key"
       parseKey [n,m] = maybe invalid draw key
         where draw = drawKeyboard . uncurry resolveScale
-              key  = zipMaybe (readNote n, readMode m)
+              key  = mzip (readNote n) (readMode m)
       parseKey _     = invalid
   parseKey . words $ raw
   putStrLn ""

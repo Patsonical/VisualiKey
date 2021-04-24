@@ -33,6 +33,7 @@ dependencies:
 - scalpel
 - text
 - time
+- url
 
 library:
   source-dirs: src

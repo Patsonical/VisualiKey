@@ -6,10 +6,12 @@ import Control.Applicative ((<|>))
 import Control.Monad.Trans
 import Control.Monad.State
 import Control.Monad.Except
+import Control.Monad.Zip (mzip)
 
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
 import Network.HTTP.Types
+import Network.URL (encString)
 
 import Data.Aeson
 import qualified Data.ByteString.Internal as Bs
@@ -19,8 +21,8 @@ import System.Directory
 import Data.Time.Clock.System
 import Data.Maybe
 import Data.ByteString.Lazy.Char8 (pack)
-import Data.Functor ((<&>))
-import Data.List (intercalate, nub)
+import Data.List (intercalate)
+import Data.Char (isAlphaNum)
 
 import Lib
 import Types
@@ -117,9 +119,12 @@ apiGetRequest path query = do
         }
   safeLiftIO $ httpLbs request manager
 
+-- ♫ > encString True (isAlphaNum) "hello there, general kenobi7''//@"
+-- "hello+there%2c+general+kenobi7%27%27%2f%2f%40"
 searchSongSAPI :: String -> VisualiKey SearchResults
 searchSongSAPI searchTerm = do
-  let query = Bs.packChars $ "type=track&limit=50&offset=0&q=" ++ searchTerm
+  let format = encString True isAlphaNum
+      query  = Bs.packChars $ "type=track&limit=50&offset=0&q=" ++ format searchTerm
   response <- apiGetRequest "/v1/search" query
   unless (okResponse response) $
     throwError ("Error searching song:\n" ++ show response)
@@ -128,7 +133,15 @@ searchSongSAPI searchTerm = do
     Nothing -> throwError $ "Error parsing tracks:\n" ++ show body
     Just ts -> pure ts
 
-getAFFromResults :: SearchResults -> VisualiKey AudioFeaturesResults
+finalise :: Track -> TuneableTrack -> VisualiKey FinalTrack
+finalise t@(Track id1 artists name) af@(TuneableTrack id2 _ _) =
+  if id1 /= id2 then
+    throwError $ "Mismatching ids for " ++ show t ++ " and " ++ show af
+  else case getKey af of 
+    Nothing  -> throwError $ "Error parsing key for " ++ show af
+    Just key -> pure $ FinalTrack name (map artist_name artists) key
+
+getAFFromResults :: SearchResults -> VisualiKey [FinalTrack]
 getAFFromResults searchRes = do
   let searchTracks = (items . tracks) searchRes
       getIds =  intercalate "%2C" . map Types.id
@@ -137,15 +150,20 @@ getAFFromResults searchRes = do
   unless (okResponse response) $
     throwError ("Error getting audio features:\n" ++ show response)
   let body = responseBody response
-  case decode body of
+  audioFeatures <- case (decode body :: Maybe AudioFeaturesResults) of
     Nothing -> throwError $ "Error parsing audio features:\n" ++ show body
-    Just afResults -> pure afResults
+    Just af -> pure af
+  let tracks = catMaybes $ zipWith mzip (map Just searchTracks) 
+                                        (audio_features audioFeatures)
+  mapM (uncurry finalise) tracks
 
 getAudioFeatures :: Track -> VisualiKey FinalTrack
-getAudioFeatures (Track id artists name) = do
+getAudioFeatures t@(Track id artists name) = do
   response <- apiGetRequest "/v1/audio-features" (Bs.packChars id)
+  unless (okResponse response) $
+    throwError ("Error getting audio features:\n" ++ show response)
   let body = responseBody response
-  (TuneableTrack _ k m) <- case (decode body :: Maybe TuneableTrack) of
+  audioFeatures <- case (decode body :: Maybe TuneableTrack) of
     Nothing -> throwError $ "Error parsing audio features:\n" ++ show body
-    Just audioFeatures -> pure audioFeatures
-  pure $ FinalTrack "" [] (A, Minor)
+    Just af -> pure af
+  finalise t audioFeatures

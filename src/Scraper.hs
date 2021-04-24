@@ -2,6 +2,7 @@
 
 module Scraper (MetaData(..), findSong, findDebug) where
 
+import Control.Monad.Zip (mzip)
 import Text.HTML.Scalpel
 import Text.Read         (readMaybe)
 
@@ -31,7 +32,7 @@ scrapeSongs = chroots ("div" @: [hasClass "searchResultNode"]) $ do
                     bpm    = readMaybe $ last rest
                     note   = readNote . head   $ hRest
                     mode   = readMode . (!! 1) $ hRest
-                    key    = zipMaybe (note, mode)
+                    key    = mzip note mode
                     keyFmt = (formatNote . head) hRest ++ " " ++ hRest !! 1
                 pure (MetaData name artist key keyFmt bpm)
 

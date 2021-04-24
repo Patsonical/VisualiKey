@@ -49,6 +49,7 @@ library
     , scalpel
     , text
     , time
+    , url
   default-language: Haskell2010
 
 executable visualikey
@@ -73,6 +74,7 @@ executable visualikey
     , scalpel
     , text
     , time
+    , url
     , visualikey
   default-language: Haskell2010
 
@@ -99,5 +101,6 @@ test-suite visualikey-test
     , scalpel
     , text
     , time
+    , url
     , visualikey
   default-language: Haskell2010

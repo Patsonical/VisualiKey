@@ -27,9 +27,34 @@ getKey :: TuneableTrack -> Maybe Key
 getKey (TuneableTrack _ k m) = (,) <$> parseNote k <*> parseMode m
 
 formatKey :: Key -> String
-formatKey (note, mode) = "" -- TODO
+formatKey (note, mode) = case mode of
+  Major -> case note of
+    C  -> "C Major"
+    C' -> "D♭ Major"
+    D  -> "D Major"
+    D' -> "E♭ Major"
+    E  -> "E Major"
+    F  -> "F Major"
+    F' -> "F♯ Major"
+    G  -> "G Major"
+    G' -> "A♭ Major"
+    A  -> "A Major"
+    A' -> "B♭ Major"
+    B  -> "B Major"
+  Minor -> case note of
+    C  -> "C Minor"
+    C' -> "C♯ Minor"
+    D  -> "D Minor"
+    D' -> "D♯ Minor"
+    E  -> "E Minor"
+    F  -> "F Minor"
+    F' -> "F♯ Minor"
+    G  -> "G Minor"
+    G' -> "G♯ Minor"
+    A  -> "A Minor"
+    A' -> "B♭ Minor"
+    B  -> "B Minor"
 
--- DEPRECATED {{{
 readMode :: String -> Maybe Mode
 readMode raw = case map toLower raw of
   "major" -> Just Major
@@ -79,6 +104,7 @@ readNote raw = case map toLower raw of
   -- Other
   _    -> Nothing
 
+-- DEPRECATED {{{
 formatNote :: String -> String
 formatNote raw = case map toLower raw of
   -- Pure notes

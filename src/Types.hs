@@ -75,7 +75,7 @@ newtype Artist = Artist {
   } deriving (Show, Generic, Eq)
 
 newtype AudioFeaturesResults = AudioFeaturesResults {
-    audio_features :: [TuneableTrack]
+    audio_features :: [Maybe TuneableTrack]
   } deriving (Show, Generic)
 data TuneableTrack = TuneableTrack {
     ttId        :: String

@@ -29,12 +29,6 @@ class (Bounded a, Enum a) => CycEnum a where
   cycEnumFromTo s e       = [] -- TODO
   cycEnumFromThenTo s n e = [] -- TODO
 
-zipMaybe :: (Maybe a, Maybe b) -> Maybe (a, b)
-zipMaybe x = do
-  a <- fst x
-  b <- snd x
-  pure (a,b)
-
 infixl 2 >>+=
 (>>+=) :: Monad m => (a -> m b) -> (a -> m c) -> a -> m c
 a1 >>+= a2 = \v -> a1 v >> a2 v
