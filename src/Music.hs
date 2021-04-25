@@ -55,6 +55,9 @@ formatKey (note, mode) = case mode of
     A' -> "B♭ Minor"
     B  -> "B Minor"
 
+readKey :: String -> String -> Maybe Key
+readKey note mode = (,) <$> readNote note <*> readMode mode
+
 readMode :: String -> Maybe Mode
 readMode raw = case map toLower raw of
   "major" -> Just Major

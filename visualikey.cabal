@@ -55,6 +55,7 @@ library
 executable visualikey
   main-is: Main.hs
   other-modules:
+      OldMain
       Paths_visualikey
   hs-source-dirs:
       app

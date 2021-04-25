@@ -28,15 +28,6 @@ import Lib
 import Types
 import Music
 
-runVK :: VKState -> VisualiKey a -> IO (Either VKError a)
-runVK st = runExceptT . flip evalStateT st
-
-testVK :: VisualiKey a -> IO (Either VKError a)
-testVK vk = do
-  manager <- newManager tlsManagerSettings
-  let st = VKState manager (Token "" "" 0) []
-  runVK st vk
-
 getConfigFile :: String -> IO FilePath
 getConfigFile file = getXdgDirectory XdgConfig ("visualikey/" ++ file)
 
@@ -72,7 +63,7 @@ getTokenFromAPI = do
                   , ("Content-Type", "application/x-www-form-urlencoded")
                   ]
       body      = "grant_type=client_credentials"
-      request   = defaultRequest { 
+      request   = defaultRequest {
           method = "POST"
         , port = 443
         , secure = True
@@ -97,18 +88,25 @@ getToken = do
   token <- getTokenFromFile <|> getTokenFromAPI
   modify (\s -> s { oauth = token })
 
+checkToken :: VisualiKey Bool
+checkToken = do
+  token       <- gets oauth
+  currentTime <- safeLiftIO $ fromIntegral . systemSeconds <$> getSystemTime
+  pure (expires_in token > currentTime)
+
 formatToken :: Token -> Lbs.ByteString
 formatToken (Token tk ty _) = pack (ty ++ " " ++ tk)
 
 apiGetRequest :: Bs.ByteString -> Bs.ByteString -> VisualiKey (Response Lbs.ByteString)
 apiGetRequest path query = do
+  checkToken >>= flip unless getToken
   token   <- gets oauth
   manager <- gets manager
   let headers   = [ ("Authorization", Lbs.toStrict (formatToken token))
                   , ("Accept", "application/json")
                   , ("Content-Type", "application/json")
                   ]
-      request   = defaultRequest { 
+      request   = defaultRequest {
           method = "GET"
         , port = 443
         , secure = True
@@ -121,8 +119,8 @@ apiGetRequest path query = do
 
 -- ♫ > encString True (isAlphaNum) "hello there, general kenobi7''//@"
 -- "hello+there%2c+general+kenobi7%27%27%2f%2f%40"
-searchSongSAPI :: String -> VisualiKey SearchResults
-searchSongSAPI searchTerm = do
+searchSong :: String -> VisualiKey [Track]
+searchSong searchTerm = do
   let format = encString True isAlphaNum
       query  = Bs.packChars $ "type=track&limit=50&offset=0&q=" ++ format searchTerm
   response <- apiGetRequest "/v1/search" query
@@ -131,29 +129,28 @@ searchSongSAPI searchTerm = do
   let body = responseBody response
   case decode body of
     Nothing -> throwError $ "Error parsing tracks:\n" ++ show body
-    Just ts -> pure ts
+    Just ts -> (pure . items . tracks ) ts
 
 finalise :: Track -> TuneableTrack -> VisualiKey FinalTrack
 finalise t@(Track id1 artists name) af@(TuneableTrack id2 _ _) =
   if id1 /= id2 then
     throwError $ "Mismatching ids for " ++ show t ++ " and " ++ show af
-  else case getKey af of 
+  else case getKey af of
     Nothing  -> throwError $ "Error parsing key for " ++ show af
     Just key -> pure $ FinalTrack name (map artist_name artists) key
 
-getAFFromResults :: SearchResults -> VisualiKey [FinalTrack]
-getAFFromResults searchRes = do
-  let searchTracks = (items . tracks) searchRes
-      getIds =  intercalate "%2C" . map Types.id
+getAFFromResults :: [Track] -> VisualiKey [FinalTrack]
+getAFFromResults searchTracks = do
+  let getIds =  intercalate "%2C" . map Types.id
       query = Bs.packChars $ "ids=" ++ getIds searchTracks
   response <- apiGetRequest "/v1/audio-features" query
   unless (okResponse response) $
     throwError ("Error getting audio features:\n" ++ show response)
   let body = responseBody response
-  audioFeatures <- case (decode body :: Maybe AudioFeaturesResults) of
+  audioFeatures <- case decode body of
     Nothing -> throwError $ "Error parsing audio features:\n" ++ show body
     Just af -> pure af
-  let tracks = catMaybes $ zipWith mzip (map Just searchTracks) 
+  let tracks = catMaybes $ zipWith mzip (map Just searchTracks)
                                         (audio_features audioFeatures)
   mapM (uncurry finalise) tracks
 
@@ -163,7 +160,7 @@ getAudioFeatures t@(Track id artists name) = do
   unless (okResponse response) $
     throwError ("Error getting audio features:\n" ++ show response)
   let body = responseBody response
-  audioFeatures <- case (decode body :: Maybe TuneableTrack) of
+  tuneableTrack <- case decode body of
     Nothing -> throwError $ "Error parsing audio features:\n" ++ show body
-    Just af -> pure af
-  finalise t audioFeatures
+    Just tt -> pure tt
+  finalise t tuneableTrack

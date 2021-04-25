@@ -1,42 +1,33 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
-
-import Control.Monad.State
-import Control.Monad.Zip  (mzip)
-import Data.List          (intercalate, isPrefixOf, nub)
-import Rainbow
-import System.Environment (getArgs)
-import Text.Read          (readMaybe)
-
-import Network.HTTP.Client
-import Network.HTTP.Client.TLS
-import Network.HTTP.Types
 
 import Keyboard
 import Lib
 import Music
-import Scraper
 import SpotifyAPI
-import Types hiding (MetaData(..), Result(..))
+import Types
 
-type Result = (Int, MetaData) -- TEMPORARY
-
-handleError :: Either VKError () -> IO ()
-handleError = \case
-  Left e   -> putStrLn e >> pure ()
-  Right () -> pure ()
+import Control.Monad.Zip  (mzip)
+import Rainbow
+import Control.Monad.State
+import Data.List (nub)
+import Text.Read (readMaybe)
+import Data.Maybe (fromMaybe)
+import System.Environment (getArgs)
 
 main :: IO ()
-main = getArgs >>= start . handleArgs
+main = getArgs >>= start . handleArgs >>= handleError
 
-start :: StateT [s] IO a -> IO a
-start = flip evalStateT []
+handleError :: Either VKError () -> IO ()
+handleError (Left e)   = putStrLn e >> pure ()
+handleError (Right ()) = pure ()
 
-handleArgs :: [String] -> StateT [Result] IO ()
+handleArgs :: [String] -> VisualiKey ()
 handleArgs args =
-  let search query = (searchSong     . unwords) query >> controlLoop
-      key    query = (lift . showKey . unwords) query
+  let search query = (findSong . unwords) query >> controlLoop
+      key    query = (liftIO . askKey . unwords) query
       lucky  query = (imFeelingLucky . unwords) query
   in case args of
     []          -> controlLoop
@@ -45,85 +36,91 @@ handleArgs args =
     ("-l":rest) -> lucky  rest
     other       -> search other
 
-controlLoop :: StateT [Result] IO ()
+controlLoop :: VisualiKey ()
 controlLoop = do
-  lift . putChunk . bold . fore blue $ "> "
-  input   <- lift getLine
+  liftIO . putChunk . bold . fore blue $ "> "
+  input   <- liftIO getLine
   case input of
     (':' : cmd) -> command cmd
     nonCmd      -> select nonCmd
 
-command :: String -> StateT [Result] IO ()
-command (cmd:rest) =
-  let cmds = [ ('q', pure ()) 
-             , ('s', search >> controlLoop) 
-             , ('k', key    >> controlLoop)
-             ]
-      search = (searchSong     . strip) rest
-      key    = (lift . showKey . strip) rest
-  in case lookup cmd cmds of
-    Just resolved -> resolved
-    Nothing  -> lift (showError "Invalid command")
-command _ = lift (showError "Invalid command") >> controlLoop
+command :: String -> VisualiKey ()
+command (cmd:rest) = fromMaybe invalidCommand (lookup cmd cmds)
+  where cmds = [ ('q', pure ())
+               , ('s', search >> controlLoop)
+               , ('k', key    >> controlLoop)
+               ]
+        search = (findSong        . strip) rest
+        key    = (liftIO . askKey . strip) rest
+command _ = invalidCommand
 
-select :: String -> StateT [Result] IO ()
+invalidCommand = liftIO (showError "Invalid command") >> controlLoop
+
+select :: String -> VisualiKey ()
 select input = do
-  results <- get
+  tracks <- gets results
   case readMaybe input of
-    Nothing -> lift $ showError "Invalid selection, enter a number or :[cmd]"
-    Just ix -> case lookup ix results of
-      Nothing  -> lift $ showError "Selection out of bounds"
-      Just res -> lift (expandResult res)
+    Nothing -> liftIO $ showError "Invalid selection, enter a number or :[cmd]"
+    Just ix -> case lookup ix tracks of
+      Nothing  -> liftIO $ showError "Selection out of bounds"
+      Just res -> liftIO $ expandResult res
   controlLoop
 
-searchSong :: String -> StateT [Result] IO ()
-searchSong name = do
-  results <- lift . findSong $ "https://tunebat.com/Search?q=" ++ intercalate "+" (words name)
-  case results of
-    Nothing  -> lift . showError $ "Error retrieving results"
-    Just res -> put (zip [1..] . nub $ res) >> presentResults
+findSong :: String -> VisualiKey ()
+findSong name = do
+  tracks <- zip [1..] . nub <$> (getAFFromResults =<< searchSong name)
+  modify (\s -> s { results = tracks })
+  presentResults
 
-imFeelingLucky :: String -> StateT [Result] IO ()
-imFeelingLucky name = do
-  results <- lift . findSong $ "https://tunebat.com/Search?q=" ++ intercalate "+" (words name)
-  case results of
-    Nothing  -> lift . showError $ "Error retrieving results"
-    Just res -> case res of
-      []    -> lift . putChunkLn . bold . fore yellow $ "No results found"
-      (x:_) -> lift . expandResult $ x
+imFeelingLucky :: String -> VisualiKey ()
+imFeelingLucky name = findSong name >> gets results >>= \case
+  []    -> liftIO . putChunkLn . bold . fore yellow $ "No results found"
+  (x:_) -> liftIO . expandResult . snd $ x
 
-presentResults :: StateT [Result] IO ()
+presentResults :: VisualiKey ()
 presentResults = do
   let foundFormat = putChunkLn . bold . fore yellow . cp
-  results <- get
-  lift $ do
-    case results of 
-      []    -> foundFormat "\tNo results found"
-      [res] -> foundFormat "\tOne result found" >> expandResult (snd res)
-      _     -> foundFormat ("\tResults found: " ++ show (length results)) >> mapM_ showResult results
+  tracks <- gets results
+  liftIO $ case tracks of
+    []    -> foundFormat "\tNo results found"
+    [res] -> foundFormat "\tOne result found" >> expandResult (snd res)
+    _     -> do
+      foundFormat ("\tResults found: " ++ show (length tracks))
+      mapM_ showResult tracks
 
-showResult :: (Int, MetaData) -> IO ()
-showResult (ix, md) = do
+formatArtists :: [String] -> String
+formatArtists artists = case length artists of
+  0 -> ""
+  1 -> head artists
+  2 -> head artists ++ " and " ++ last artists
+  _ -> fmt artists
+    where fmt [] = ""
+          fmt [x] = "and " ++ x
+          fmt (x : y : xs) = x ++ ", " ++ fmt (y:xs)
+
+showResult :: (Int, FinalTrack) -> IO ()
+showResult (ix, FinalTrack name artists key) = do
   putChunk   . bold . fore blue  . cp $ '[' : show ix ++ "] "
-  putChunk          . fore blue  . cp $ _artist md ++ " - "
-  putChunkLn        . fore green . cp $ _name md
+  putChunk          . fore blue  . cp $ formatArtists artists ++ " - "
+  putChunkLn        . fore green . cp $ name
 
-expandResult :: MetaData -> IO ()
-expandResult md = do
-  putChunk   . bold . fore blue   . cp $ '\t' : _artist md ++ " - "
-  putChunkLn . bold . fore green  . cp $ _name md
-  putChunkLn . bold . fore yellow . cp $ replicate 22 ' ' ++ "Key: " ++ _keyFmt md
-  case _key md of
-    Nothing  -> showError "Error parsing key"
-    Just key -> drawKeyboard . uncurry resolveScale $ key
+keyHeader :: Key -> IO ()
+keyHeader k = putChunkLn . bold . fore yellow . cp $ replicate 22 ' ' ++ "Key: " ++ formatKey k
+
+expandResult :: FinalTrack -> IO ()
+expandResult (FinalTrack name artists key) = do
+  putChunk   . bold . fore blue   . cp $ '\t' : formatArtists artists ++ " - "
+  putChunkLn . bold . fore green  . cp $ name
+  keyHeader key
+  drawKeyboard . uncurry resolveScale $ key
   putStrLn ""
 
-showKey :: String -> IO ()
-showKey raw = do
+askKey :: String -> IO ()
+askKey raw = do
   let invalid  = showError "Error parsing key"
       parseKey [n,m] = maybe invalid draw key
-        where draw = drawKeyboard . uncurry resolveScale
-              key  = mzip (readNote n) (readMode m)
-      parseKey _     = invalid
+        where draw k   = keyHeader k >> (drawKeyboard . uncurry resolveScale) k
+              key      = readKey n m
+      parseKey _       = invalid
   parseKey . words $ raw
   putStrLn ""

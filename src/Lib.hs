@@ -9,6 +9,9 @@ import Data.Either (Either(..))
 import Control.Monad.Except
 
 import Types
+import Network.HTTP.Client (newManager)
+import Network.HTTP.Client.TLS (tlsManagerSettings)
+import Control.Monad.State (evalStateT)
 
 class (Bounded a, Enum a) => CycEnum a where
   toCycEnum         :: Int -> a
@@ -53,6 +56,15 @@ showError = putChunkLn . fore red . cp
 
 strip :: String -> String
 strip = dropWhile (==' ')
+
+runVK :: VKState -> VisualiKey a -> IO (Either VKError a)
+runVK st = runExceptT . flip evalStateT st
+
+start :: VisualiKey a -> IO (Either VKError a)
+start vk = do
+  manager <- newManager tlsManagerSettings
+  let st = VKState manager (Token "" "" 0) []
+  runVK st vk
 
 safeLiftIO :: IO a -> VisualiKey a
 safeLiftIO io = do
